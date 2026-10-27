@@ -11,7 +11,7 @@ const PHOTO_KINDS = ['정면', '뒷면', '진열대', '색상 구분', '헷갈�
 
 let products = [];          // 지워지지 않은 상품
 const photos = new Map();   // productId → [사진]
-let S = { rate: DEFAULT_RATE, stores: [], tab: 'list', view: 'grid' };
+let S = { rate: DEFAULT_RATE, budget: 0, stores: [], tab: 'list', view: 'grid' };
 let ui = { q: '', cat: '전체', buy: 'all', prio: '전체', shop: '전체', sort: 'prio', store: null, withUnknown: true };
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -31,6 +31,7 @@ const num = (v) => { const n = parseFloat(String(v).replace(/,/g, '')); return N
 async function boot() {
   askPersist();
   S.rate = await db.meta('rate', DEFAULT_RATE);
+  S.budget = await db.meta('budget', 0);
   S.view = await db.meta('view', 'grid');
   S.tab = await db.meta('tab', 'list');
   S.stores = await db.meta('stores', []);
@@ -105,8 +106,19 @@ function totals() {
   return { est, unknown, real, done, total: products.length, saved, savedN };
 }
 
+// 쇼핑을 많이 하면 고양이 눈이 돌아간다: 산 돈 ÷ (예산, 없으면 넉넉한 예상 합계)
+function mood(t = totals()) {
+  const limit = S.budget || t.est;
+  const r = limit ? t.real / limit : 0;
+  return { m: r >= 1 ? 'dizzy' : r >= 0.8 ? 'wobble' : '', limit, pct: Math.round(r * 100) };
+}
+const mascotSrc = (m) => (m === 'dizzy' ? 'images/mascot-dizzy-320.png' : 'images/mascot-320.png');
+const headImg = () => { const { m } = mood(); return `<img src="${mascotSrc(m)}" class="${m}" alt="">`; };
+
 /* ---------- 그리기 ---------- */
 function render() {
+  const lg = $('.logo img'), { m } = mood();
+  lg.src = mascotSrc(m); lg.className = m;
   $$('.tab').forEach((t) => t.setAttribute('aria-current', t.dataset.tab === S.tab));
   $('#fab').hidden = S.tab !== 'list';
   ({ list: renderList, store: renderStore, report: renderReport, set: renderSet })[S.tab]();
@@ -125,7 +137,8 @@ function ph(p) {
 function summaryHTML() {
   const t = totals();
   const pct = t.total ? Math.round((t.done / t.total) * 100) : 0;
-  return `<section class="summary" aria-label="요약"><img class="mascot" src="images/mascot-320.png" alt="">
+  const md = mood(t), base = S.budget ? '예산' : '예상 합계';
+  return `<section class="summary" aria-label="요약"><img class="mascot ${md.m}" src="${mascotSrc(md.m)}" alt="">
     <div class="sum-top">
       <div><div class="sum-label">예상 합계 · 넉넉하게 ♡</div>
         <div class="sum-big"><span class="yen">${yen(t.est)}</span><span class="won">${won(t.est * S.rate)}</span></div></div>
@@ -133,6 +146,7 @@ function summaryHTML() {
     </div>
     <div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="산 비율"><i style="width:${pct}%"></i></div>
     <div class="note">${t.done ? `실제 쓴 돈 ${yen(t.real)} (${won(t.real * S.rate)}) · ` : ''}세금 포함 · 가격 미정 ${t.unknown}개는 빠져 있어요</div>
+    ${md.m === 'dizzy' ? `<div class="mood dizzy">🌀 눈 돌아가요! ${base}보다 ${yen(t.real - md.limit)} 더 썼어요</div>` : md.m === 'wobble' ? `<div class="mood">💦 ${base}의 ${md.pct}%를 썼어요. 조금만 더 사면 눈 돌아가요</div>` : ''}
   </section>`;
 }
 
@@ -556,7 +570,7 @@ function renderStore() {
   const list = products.filter((p) => (p.판매처 || []).some((s) => s.이름 === ui.store) || (ui.withUnknown && !(p.판매처 || []).length))
     .sort((a, b) => isBought(a) - isBought(b) || PRIOS.indexOf(a.우선순위) - PRIOS.indexOf(b.우선순위));
   const left = list.filter((p) => !isBought(p)).length;
-  $('#main').innerHTML = `<div class="store-head"><img src="images/mascot-320.png" alt=""><div><h2>매장 모드</h2><p>고른 매장에서 살 것만 크게! 누르면 바로 구매 완료</p></div></div>
+  $('#main').innerHTML = `<div class="store-head">${headImg()}<div><h2>매장 모드</h2><p>고른 매장에서 살 것만 크게! 누르면 바로 구매 완료</p></div></div>
     <div class="chips" role="group" aria-label="판매처">${S.stores.map((s) => `<button class="chip" data-st="${esc(s)}" aria-pressed="${ui.store === s}">${esc(s)}</button>`).join('')}</div>
     <div class="subtools"><label class="toggle"><input type="checkbox" id="unk" ${ui.withUnknown ? 'checked' : ''}> 판매처 미정도 보기</label><span class="count">남은 것 ${left}개</span></div>
     <div class="big-list">${list.length ? list.map((p) => {
@@ -590,7 +604,7 @@ function renderReport() {
   const bought = products.filter(isBought), todo = products.filter((p) => !isBought(p));
   const byStore = {};
   bought.forEach((p) => { const k = p.구입.산곳 || '기타'; byStore[k] = (byStore[k] || 0) + (p.구입.가격 || 0) * (p.구입.개수 || 1); });
-  $('#main').innerHTML = `<div class="store-head"><img src="images/mascot-320.png" alt=""><div><h2>정리</h2><p>산 것과 안 산 것, 쓴 돈을 한눈에</p></div></div>
+  $('#main').innerHTML = `<div class="store-head">${headImg()}<div><h2>정리</h2><p>산 것과 안 산 것, 쓴 돈을 한눈에</p></div></div>
   <div class="report">
     <div class="rcard"><h3>쓴 돈</h3>
       <div class="rline"><span>실제 합계</span><b>${yen(t.real)} · ${won(t.real * S.rate)}</b></div>
@@ -610,11 +624,15 @@ async function renderSet() {
   let usage = '';
   try { const e = await navigator.storage.estimate(); usage = `${(e.usage / 1048576).toFixed(1)}MB 사용 중`; } catch (e) {}
   const persisted = await navigator.storage?.persisted?.().catch(() => false);
-  $('#main').innerHTML = `<div class="store-head"><img src="images/mascot-320.png" alt=""><div><h2>설정</h2><p>환율·판매처·동기화·백업</p></div></div>
+  $('#main').innerHTML = `<div class="store-head">${headImg()}<div><h2>설정</h2><p>환율·판매처·동기화·백업</p></div></div>
   <div class="report">
     <div class="rcard"><h3>환율</h3>
       <label class="field">1엔당 원<input id="rate2" inputmode="decimal" value="${S.rate}"></label>
       <p class="sub">기본값 9.20원은 최근 1년 평균(2026-10-27 Wise 기준)이에요. 여행 직전에 바꿔 주세요.</p>
+    </div>
+    <div class="rcard"><h3>쇼핑 예산</h3>
+      <label class="field"><span>예산 (엔) <small>(비우면 예상 합계 기준)</small></span><input id="budget" inputmode="numeric" value="${S.budget || ''}" placeholder="예: 50000"></label>
+      <p class="sub">산 돈이 80%를 넘으면 고양이가 비틀거리고, 넘기면 눈이 돌아가요 🌀</p>
     </div>
     <div class="rcard"><h3>판매처 목록</h3>
       <div class="tags" id="storeTags">${S.stores.map((s, i) => `<span class="tag">${esc(s)} <button class="x" data-rm="${i}" aria-label="${esc(s)} 빼기">×</button></span>`).join('')}</div>
@@ -635,6 +653,7 @@ async function renderSet() {
     </div>
   </div>`;
   $('#rate2').onchange = (e) => setRate(e.target.value);
+  $('#budget').onchange = async (e) => { const v = num(e.target.value); S.budget = v > 0 ? v : 0; await db.setMeta('budget', S.budget); renderSet(); };
   $$('[data-rm]').forEach((b) => (b.onclick = async () => { S.stores.splice(+b.dataset.rm, 1); await saveStores(); renderSet(); }));
   $('#addStore').onclick = async () => { const n = $('#newStore').value.trim(); if (!n || S.stores.includes(n)) return; S.stores.push(n); await saveStores(); renderSet(); };
   const saveCfg = async () => { await db.setMeta('syncUrl', $('#sUrl').value.trim()); await db.setMeta('syncKey', $('#sKey').value); };
@@ -661,7 +680,7 @@ async function setRate(val) {
 }
 
 async function exportJSON() {
-  const all = { app: 'japan_shopping', version: 1, exportedAt: new Date().toISOString(), 설정: { rate: S.rate, 판매처목록: S.stores },
+  const all = { app: 'japan_shopping', version: 1, exportedAt: new Date().toISOString(), 설정: { rate: S.rate, budget: S.budget, 판매처목록: S.stores },
     상품: (await db.all('products')).map(({ _dirty, ...r }) => r), 사진: (await db.all('photos')).filter((x) => !x.deleted).map(({ _dirty, uploaded, ...r }) => r) };
   const blob = new Blob([JSON.stringify(all)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -679,6 +698,7 @@ async function importJSON(file) {
     for (const p of d.상품 || []) { const l = await db.get('products', p.id); if (!l || (p.updatedAt || 0) >= (l.updatedAt || 0)) { await db.put('products', { ...p, _dirty: true }); n++; } }
     for (const x of d.사진 || []) { const l = await db.get('photos', x.id); if (!l || (x.updatedAt || 0) >= (l.updatedAt || 0)) await db.put('photos', { ...x, _dirty: true, uploaded: !!x.fileId }); }
     if (d.설정?.판매처목록) { S.stores = [...new Set([...S.stores, ...d.설정.판매처목록.map(String)])]; await saveStores(); }
+    if (d.설정?.budget >= 0) { S.budget = +d.설정.budget || 0; await db.setMeta('budget', S.budget); }
     if (d.설정?.rate > 0) { S.rate = d.설정.rate; await db.setMeta('rate', S.rate); $('#rate').value = S.rate; }
     await loadAll(); render(); toast(`가져왔어요 (상품 ${n}개)`); autoSync();
   } catch (e) { toast('가져오기 실패: ' + e.message); }

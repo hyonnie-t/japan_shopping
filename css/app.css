@@ -298,4 +298,11 @@ details.more[open]{display:grid;gap:12px;padding-bottom:12px}
 }
 @media (min-width:1024px){ .grid{grid-template-columns:repeat(4,1fr)} .big-list{grid-template-columns:repeat(3,1fr)} .bigcard{grid-template-columns:1fr;grid-template-rows:190px auto} .report{grid-template-columns:1fr 1fr 1fr} }
 @media (min-width:1240px){ .grid{grid-template-columns:repeat(5,1fr)} }
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* 쇼핑 많이 하면 고양이가 비틀(80%)·눈 돌아감(100%) */
+.mascot.wobble,.logo img.wobble,.store-head img.wobble{animation:wob 1.4s ease-in-out infinite}
+.mascot.dizzy,.logo img.dizzy,.store-head img.dizzy{animation:dizzy 1.8s ease-in-out infinite}
+@keyframes wob{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+@keyframes dizzy{0%,100%{transform:rotate(0) scale(1)}25%{transform:rotate(-14deg) scale(1.06)}75%{transform:rotate(14deg) scale(1.06)}}
+.mood{position:relative;margin-top:8px;padding:6px 10px;border-radius:12px;background:#FFF1CC;color:#6B4A00;font-family:var(--cute);font-size:15px}
+.mood.dizzy{background:#FFE0EA;color:var(--pink-deep)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
