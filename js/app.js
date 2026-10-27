@@ -164,7 +164,7 @@ function renderList() {
     </div>
     <div class="chips" role="group" aria-label="대분류">${cats.map((c) => `<button class="chip" data-cat="${c}" aria-pressed="${ui.cat === c}">${CAT_EMO[c] ? CAT_EMO[c] + ' ' : ''}${c}</button>`).join('')}</div>
     <div class="subtools">
-      <select id="buyF" aria-label="구입 여부"><option value="all" ${ui.buy === 'all' ? 'selected' : ''}>산 것·살 것 다</option><option value="todo" ${ui.buy === 'todo' ? 'selected' : ''}>살 것만</option><option value="done" ${ui.buy === 'done' ? 'selected' : ''}>산 것만</option></select>
+      <select id="buyF" aria-label="구입 여부"><option value="all" ${ui.buy === 'all' ? 'selected' : ''}>전부 보기</option><option value="todo" ${ui.buy === 'todo' ? 'selected' : ''}>살 것만</option><option value="done" ${ui.buy === 'done' ? 'selected' : ''}>산 것만</option></select>
       <select id="prioF" aria-label="우선순위"><option value="전체">우선순위 전부</option>${PRIOS.map((x) => `<option ${ui.prio === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
       <select id="shopF" aria-label="판매처"><option value="전체">판매처 전부</option>${S.stores.map((x) => `<option value="${esc(x)}" ${ui.shop === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
       <select id="sort" aria-label="정렬">
