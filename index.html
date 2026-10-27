@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFF6EE">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="쇼핑도감">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>일본 쇼핑 도감</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <div class="logo"><img src="images/mascot-320.png" alt="">일본 쇼핑 도감<small>♡</small></div>
+  <span class="net" id="net" hidden>오프라인</span>
+  <button class="sync" id="syncBtn" data-state="" aria-label="구글 시트와 동기화">☁️</button>
+  <label class="rate" title="최근 1년 평균 9.20원이 기본값">1엔 = <input id="rate" inputmode="decimal" aria-label="환율 1엔당 원">원</label>
+</div></header>
+
+<main class="wrap" id="main"></main>
+
+<button class="fab" id="fab" aria-label="상품 추가"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+<nav class="tabs"><div class="tabs-in">
+  <button class="tab" data-tab="list"><span class="ti" aria-hidden="true">🎀</span>도감</button>
+  <button class="tab" data-tab="store"><span class="ti" aria-hidden="true">🏪</span>매장 모드</button>
+  <button class="tab" data-tab="report"><span class="ti" aria-hidden="true">🧾</span>정리</button>
+  <button class="tab" data-tab="set"><span class="ti" aria-hidden="true">⚙️</span>설정</button>
+</div></nav>
+
+<div class="scrim" id="scrim"></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="상품 정보"></section>
+<div class="show" id="show" role="dialog" aria-label="직원에게 보여 주기"></div>
+<div class="zoom" id="zoom" role="dialog" aria-label="사진 크게 보기"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button id="toastUndo">되돌리기</button></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
