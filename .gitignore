@@ -6,3 +6,6 @@ token.json
 api_key.txt
 credentials.json
 .impeccable/
+
+# 힉스필드 원본 그림(크기가 커서 레포에는 안 올림, OneDrive에만 보관)
+design/

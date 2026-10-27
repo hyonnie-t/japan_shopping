@@ -19,7 +19,7 @@ function doPost(e) {
     const props = PropertiesService.getScriptProperties();
     const saved = props.getProperty('SYNC_KEY');
     if (!saved) {
-      if (d.action !== 'hello' || !d.key || String(d.key).length < 6) return out_({ ok: false, error: '처음 연결: 비밀번호를 6자 이상으로 정해 주세요' });
+      if (d.action !== 'hello' || !d.key || String(d.key).length < 4) return out_({ ok: false, error: '처음 연결: 비밀번호를 4자 이상으로 정해 주세요' });
       props.setProperty('SYNC_KEY', String(d.key));
       setup_();
       return out_({ ok: true, firstSetup: true });

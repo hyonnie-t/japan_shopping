@@ -10,7 +10,7 @@
 - `js/sync.js` 구글 시트 동기화 클라이언트(앱스 스크립트 웹 앱, text/plain POST). updatedAt 늦은 쪽이 이김, 삭제는 deleted 표시
 - `apps-script/Code.gs` 시트에 붙는 앱스 스크립트(시트 탭: 상품/사진/설정, 사진 파일은 Drive «일본쇼핑 사진»). onEdit가 시트 직접 수정 시 updatedAt 갱신
 - `data/products.json` 처음 넣는 상품(X 북마크에서 고른 32개). 새 id를 더하면 다음에 열 때 그것만 추가됨
-- `sw.js` 서비스 워커(앱 파일 캐시, 네트워크 먼저), `manifest.webmanifest`, `icons/`(마스코트), `images/mascot-320.png`(힉스필드로 만든 삼색 고양이, `mascot-dizzy-320.png`는 예산 넘었을 때 눈 돌아간 고양이), `fonts/Jua-Regular.ttf`(OFL)
+- `sw.js` 서비스 워커(앱 파일 캐시, 네트워크 먼저), `manifest.webmanifest`, `icons/`(마스코트), `images/mascot-320.png`(힉스필드로 만든 삼색 고양이, 토끼 시안 스타일. `mascot-dizzy-320.png`는 예산 넘었을 때 눈 돌아간 고양이). 힉스필드 원본은 `design/higgsfield/`(gitignore, OneDrive에만), `fonts/Jua-Regular.ttf`(OFL)
 - `preview.html` 처음 디자인 시안(참고용)
 
 ## 규칙
