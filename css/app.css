@@ -9,6 +9,7 @@
   --kr:"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",-apple-system,sans-serif;
   --jp:"Hiragino Maru Gothic ProN","Hiragino Maru Gothic Pro","Hiragino Sans","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;
   --c-뷰티:#FFD9E4; --c-헤어바디:#D6ECFF; --c-드럭스토어건강:#D8F2E5; --c-생활용품:#FFEBC8; --c-먹거리:#FFE1C6; --c-기타:#E8DEFB;
+  --c-패션잡화:#FCE0F0; --c-디지털:#DCE6FF; --c-책문구:#E6F4D2; --c-취미:#FFE6D6;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;color:var(--ink);font-family:var(--kr);font-size:16px;line-height:1.5}
@@ -202,6 +203,19 @@ nav.tabs{position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-in
 .sync[data-state=off]::after{background:var(--faint)}
 @keyframes blink{50%{opacity:.3}}
 @media (max-width:420px){ .logo{font-size:17px} .logo small{display:none} .rate{padding:3px 8px} .rate input{width:46px} }
+
+/* 목록(일본 여행·위시리스트…) */
+.listbar{padding:12px 2px 2px}
+.listbar .chip{min-height:46px;font-size:15px;background:var(--mint-soft);border-color:#BFE5D4;color:#1F6650}
+.listbar .chip small{font-size:12px;opacity:.8;margin-left:2px}
+.listbar .chip[aria-pressed=true]{background:var(--mint);color:#fff;border-color:#1F6650;box-shadow:0 3px 0 #1F6650}
+.tabs-in.three{grid-template-columns:repeat(3,1fr)}
+.list-rows{display:grid;gap:8px}
+.list-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1.1fr) minmax(0,1fr) 44px;gap:6px;align-items:center}
+.list-row input,.list-row select{min-height:44px;width:100%;border:2px solid var(--line);border-radius:14px;background:var(--card);padding:0 10px;font-size:15px}
+.list-row .btn{min-height:44px;width:44px;padding:0;font-size:18px}
+.list-row .btn:disabled{opacity:.35}
+@media (max-width:420px){ .list-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px;padding-bottom:8px;border-bottom:2px dotted var(--line)} .list-row .btn{grid-row:1;grid-column:3} .list-row [data-lb]{grid-column:1 / 4} }
 
 /* 사진이 있는 카드 */
 .ph.has-img{background-image:none}

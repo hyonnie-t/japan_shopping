@@ -1,7 +1,7 @@
 // 오프라인용: 앱 파일을 캐시에 두고, 인터넷이 없으면 캐시에서 연다.
 // 상품·사진은 IndexedDB에 있어서 여기서 따로 캐시하지 않는다.
-const VERSION = 'v6';
-const CACHE = 'japan-shopping-' + VERSION;
+const VERSION = 'v7';
+const CACHE = 'wish-list-' + VERSION;
 const FILES = [
   './', 'index.html', 'css/app.css', 'js/app.js', 'js/db.js', 'js/photo.js', 'js/sync.js',
   'data/products.json', 'images/mascot-320.png', 'images/mascot-dizzy-320.png', 'fonts/Jua-Regular.ttf',
@@ -13,7 +13,7 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('japan-shopping-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => (k.startsWith('wish-list-') || k.startsWith('japan-shopping-')) && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
 self.addEventListener('fetch', (e) => {

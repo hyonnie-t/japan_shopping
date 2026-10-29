@@ -1,4 +1,5 @@
 // 폰 안 저장소(IndexedDB). 앱의 원본 데이터는 여기 있고, 시트는 동기화·백업용이다.
+// 레포 이름이 wish_list로 바뀌어도 같은 주소(hyonnie-t.github.io)라 이 이름을 그대로 써야 기존 상품·사진이 이어진다
 const DB_NAME = 'japan_shopping';
 const DB_VER = 1;
 let dbp;

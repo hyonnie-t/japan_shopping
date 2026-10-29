@@ -1,6 +1,6 @@
 {
-  "name": "일본 쇼핑 도감",
-  "short_name": "쇼핑도감",
+  "name": "위시 도감",
+  "short_name": "위시도감",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

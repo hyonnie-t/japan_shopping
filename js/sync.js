@@ -3,17 +3,27 @@
 // 받아 올 범위(since)는 시트 서버 시계로 적은 syncedAt으로 정해서 기기 시계 차이에 흔들리지 않게 한다.
 import { db } from './db.js';
 
+// 응답이 없으면 끝없이 «맞추는 중»에 머물지 않게 끊는다(사진 한 장도 이 안에 충분히 오간다)
+const TIMEOUT_MS = 60000;
+
 async function call(url, body) {
   // 앱스 스크립트는 CORS 사전 요청을 못 받으므로 text/plain으로 보낸다
-  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body), redirect: 'follow' });
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  const j = await r.json();
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), TIMEOUT_MS);
+  let r, j;
+  try {
+    r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body), redirect: 'follow', signal: ac.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    j = await r.json();
+  } catch (e) {
+    throw e.name === 'AbortError' ? new Error('시트가 1분 동안 답이 없어요. 인터넷을 확인하고 다시 눌러 주세요') : e;
+  } finally { clearTimeout(t); }
   if (!j.ok) throw new Error(j.error || '실패');
   return j;
 }
 
 export async function getConfig() {
-  return { url: await db.meta('syncUrl', ''), key: await db.meta('syncKey', ''), last: await db.meta('lastPull', 0), lastAt: await db.meta('lastSyncAt', 0) };
+  return { url: await db.meta('syncUrl', ''), key: await db.meta('syncKey', ''), last: await db.meta('lastPull', 0), lastAt: await db.meta('lastSyncAt', 0), serverV: await db.meta('serverV', 1) };
 }
 
 export async function testConnection(url, key) {
@@ -85,9 +95,38 @@ export async function sync(onStep = () => {}) {
     } catch (e) { failed++; }
   }
   if (res.settings) await mergeSettings(res.settings);
+  // 목록은 기기끼리 합친다. 시트에 없는 것이 있으면 다시 보낸다
+  const ml = await mergeLists(res.settings || {});
+  if (ml) {
+    await db.setMeta('lists', ml.merged); await db.setMeta('listsDel', ml.del); await db.setMeta('listsAt', ml.at);
+    if (ml.needPush) await call(url, { action: 'saveSettings', key, settings: { 목록들: ml.merged, 목록삭제: ml.del, listsAt: ml.at } });
+  }
+  // 시트 스크립트가 2로 올라간 첫 동기화: 예전 스크립트가 버린 목록·링크를 다시 보낸다
+  const prevV = await db.meta('serverV', 1), v = res.v || 1;
+  let again = false;
+  if (prevV < 2 && v >= 2) {
+    for (const p of await db.all('products')) if (p.목록 || p.링크) { await db.put('products', { ...p, _dirty: true }); again = true; }
+  }
   await db.setMeta('lastPull', res.now);
   await db.setMeta('lastSyncAt', Date.now());
-  return { sent: dirtyP.length + dirtyPh.length + toUpload.length, got: changed, failed };
+  await db.setMeta('serverV', v); // 2부터 목록·링크 칸이 시트에 있다
+  return { sent: dirtyP.length + dirtyPh.length + toUpload.length, got: changed, failed, serverV: v, again };
+}
+
+const cleanLists = (a) => (Array.isArray(a) ? a : []).filter((l) => l && l.id && l.이름)
+  .map((l) => ({ id: String(l.id), 이름: String(l.이름), 통화: l.통화 === 'JPY' ? 'JPY' : 'KRW', 예산: +l.예산 || 0 }));
+
+// 목록은 통째로 덮지 않고 id별로 합친다. 같은 목록을 양쪽에서 고쳤으면 나중에 고친 기기 쪽, 지운 목록은 양쪽 모두에서 뺀다
+export async function mergeLists(s) {
+  const mine = await db.meta('lists', []), myAt = await db.meta('listsAt', 0), myDel = await db.meta('listsDel', []);
+  const theirs = cleanLists(s.목록들), theirAt = Number(s.listsAt) || 0;
+  const theirDel = Array.isArray(s.목록삭제) ? s.목록삭제.map(String) : [];
+  const del = [...new Set([...myDel, ...theirDel])];
+  const [first, second] = theirAt > myAt ? [theirs, mine] : [mine, theirs];
+  const merged = [...first, ...second.filter((l) => !first.some((x) => x.id === l.id))].filter((l) => !del.includes(l.id));
+  if (!merged.length) return null; // 다 지워지는 일은 없게(앱은 목록이 하나 이상 있어야 한다)
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  return { merged, del, at: Math.max(myAt, theirAt), needPush: !same(merged, theirs) || del.length !== theirDel.length };
 }
 
 // 판매처 목록은 마지막으로 고친 기기의 것을 따른다
