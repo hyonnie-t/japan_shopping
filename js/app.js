@@ -846,7 +846,7 @@ async function runSync(manual) {
     setSyncState('ok');
     if (r.again) syncAgain = true; // 목록·링크를 새 스크립트로 다시 보내기
     if (r.serverV < 2 && !warnedOld) { warnedOld = true; toast('시트 스크립트를 새 버전으로 배포해야 목록·링크가 저장돼요 (설정 참고)'); }
-    if (manual) { toast(`동기화 끝! 보낸 것 ${r.sent} · 받은 것 ${r.got}` + (r.failed ? ` · 못 받은 사진 ${r.failed}` : '')); if (S.tab === 'set') renderSet(); }
+    if (manual) { toast(`동기화 끝! 보낸 것 ${r.sent} · 받은 것 ${r.got}` + (r.failed ? ` · 못 받은 사진 ${r.failed}${r.lastErr ? ` (${r.lastErr})` : ''}` : '')); if (S.tab === 'set') renderSet(); }
   } catch (e) {
     setSyncState('err');
     if (manual) { toast('동기화 실패: ' + e.message); if ($('#sMsg')) $('#sMsg').textContent = '실패: ' + e.message; }

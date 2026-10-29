@@ -85,14 +85,17 @@ export async function sync(onStep = () => {}) {
     }
   }
   // 4) 이 기기에 없는 사진 내려받기 (한 장이 실패해도 나머지는 계속)
-  let failed = 0;
+  // 예전에 받다 실패한 사진(정보만 있고 그림이 없는 것)도 매번 다시 받는다. 시트 줄은 since 뒤로 밀려 다시 안 오기 때문
+  for (const ph of await db.all('photos')) if (!ph.data && !ph.deleted && ph.fileId && !needData.includes(ph.id)) needData.push(ph.id);
+  let failed = 0, lastErr = '';
   for (let i = 0; i < needData.length; i++) {
     onStep(`사진 받는 중 ${i + 1}/${needData.length}`);
     try {
       const r = await call(url, { action: 'getPhoto', key, id: needData[i] });
       const ph = await db.get('photos', needData[i]);
-      if (ph && /^data:image\//.test(r.data || '')) await db.put('photos', { ...ph, data: r.data });
-    } catch (e) { failed++; }
+      if (ph && /^data:image\//.test(r.data || '')) { await db.put('photos', { ...ph, data: r.data }); changed++; }
+      else failed++;
+    } catch (e) { failed++; lastErr = e.message; }
   }
   if (res.settings) await mergeSettings(res.settings);
   // 목록은 기기끼리 합친다. 시트에 없는 것이 있으면 다시 보낸다
@@ -110,7 +113,7 @@ export async function sync(onStep = () => {}) {
   await db.setMeta('lastPull', res.now);
   await db.setMeta('lastSyncAt', Date.now());
   await db.setMeta('serverV', v); // 2부터 목록·링크 칸이 시트에 있다
-  return { sent: dirtyP.length + dirtyPh.length + toUpload.length, got: changed, failed, serverV: v, again };
+  return { sent: dirtyP.length + dirtyPh.length + toUpload.length, got: changed, failed, lastErr, serverV: v, again };
 }
 
 const cleanLists = (a) => (Array.isArray(a) ? a : []).filter((l) => l && l.id && l.이름)
