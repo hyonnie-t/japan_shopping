@@ -1,4 +1,4 @@
-# 위시 도감 (wish_list, 예전 일본 쇼핑 도감 japan_shopping)
+# 큰손 효니의 위시리스트 (wish_list, 예전 위시 도감·일본 쇼핑 도감 japan_shopping)
 
 ## 무엇인지
 배포 https://hyonnie-t.github.io/wish_list/ (2026-10-29 레포 이름 japan_shopping → wish_list, 옛 주소는 404).
@@ -12,7 +12,7 @@
 - `js/photo.js` 사진을 가로 800px JPEG로 줄임
 - `js/sync.js` 구글 시트 동기화 클라이언트(앱스 스크립트 웹 앱, text/plain POST, 요청마다 60초 제한). updatedAt 늦은 쪽이 이김, 삭제는 deleted 표시
 - `apps-script/Code.gs` 시트에 붙는 앱스 스크립트(시트 탭: 상품/사진/설정, 사진 파일은 Drive «일본쇼핑 사진»). onEdit가 시트 직접 수정 시 updatedAt 갱신. `VERSION`(지금 2)을 hello·pull로 돌려주고 앱은 `serverV`로 저장해 낮으면 안내한다. 상품 시트 칸은 **맨 뒤에만** 더한다(`sheet_`가 예전 시트에 머리글을 붙임)
-- `data/products.json` 처음 넣는 상품(X 북마크에서 고른 32개). 새 id를 더하면 다음에 열 때 그것만 추가됨
+- `data/products.json` 처음 넣는 상품(X 북마크에서 고른 일본 32개 p001~ + 2026-10-29 국내 29개 k001~, 목록 wish). 트윗 사진은 레포에 안 넣고 `design/*-가져오기.json`(OneDrive)을 폰 설정 «JSON 가져오기»로 넣는다. 새 id를 더하면 다음에 열 때 그것만 추가됨
 - `sw.js` 서비스 워커(앱 파일 캐시, 네트워크 먼저), `manifest.webmanifest`, `icons/`(마스코트), `images/mascot-320.png`(힉스필드로 만든 삼색 고양이, 토끼 시안 스타일. `mascot-dizzy-320.png`는 예산 넘었을 때 눈 돌아간 고양이). 힉스필드 원본은 `design/higgsfield/`(gitignore, OneDrive에만), `fonts/Jua-Regular.ttf`(OFL)
 - `preview.html` 처음 디자인 시안(참고용)
 

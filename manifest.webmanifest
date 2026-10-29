@@ -1,6 +1,6 @@
 {
-  "name": "위시 도감",
-  "short_name": "위시도감",
+  "name": "큰손 효니의 위시리스트",
+  "short_name": "큰손 효니",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

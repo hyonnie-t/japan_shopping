@@ -796,7 +796,7 @@ async function exportJSON() {
     상품: (await db.all('products')).map(({ _dirty, ...r }) => r), 사진: (await db.all('photos')).filter((x) => !x.deleted).map(({ _dirty, uploaded, ...r }) => r) };
   const blob = new Blob([JSON.stringify(all)], { type: 'application/json' });
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = `위시도감-백업-${today()}.json`;
+  a.href = URL.createObjectURL(blob); a.download = `큰손위시-백업-${today()}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   toast('백업 파일을 만들었어요');
