@@ -1,14 +1,16 @@
-# 일본 쇼핑 도감 (japan_shopping)
+# 위시 도감 (예전 일본 쇼핑 도감, japan_shopping)
 
 ## 무엇인지
-효니 개인용 일본 여행 쇼핑 도감 PWA. 폰으로 매장 앞에서 «사려던 물건이 이거 맞나» 확인하고, 산 뒤 체크한다. 인터넷이 끊겨도 목록·사진·체크·가격 입력이 된다. 2026-10-27 처음 만듦.
+효니 개인용 «사고 싶은 것» 도감 PWA. 2026-10-27 일본 여행 쇼핑 도감으로 만들고, 2026-10-29 목록 여러 개(✈️ 일본 여행=엔화 / 💝 위시리스트=원화 …)로 넓혔다. 엔화 목록은 매장 앞에서 일본어 이름·세금·면세·매장 모드, 원화 목록은 가격·어디서·구매 링크. 인터넷이 끊겨도 목록·사진·체크·가격 입력이 된다.
+- 목록: meta `lists`([{id, 이름, 통화 JPY|KRW, 예산}])·`listsAt`·`listsDel`(지운 목록 id), 현재 목록 `curList`. 상품 `목록`(없거나 모르는 id면 첫 목록)·`링크`. 원화 상품 가격은 `한국가격.금액/어디`를 쓴다. 목록은 동기화 때 id별로 합친다(sync.js `mergeLists`).
+- IndexedDB 이름은 `japan_shopping` 그대로(레포 이름이 바뀌어도 같은 origin이라 기존 데이터가 이어진다). 백업 JSON의 `app` 값도 `japan_shopping` 유지.
 
 ## 구조
 - `index.html` 화면 뼈대, `css/app.css` 아기자기 스타일(파스텔·스티커·Jua 글꼴), `js/app.js` 화면 전부
 - `js/db.js` 폰 저장소(IndexedDB: products / photos / meta) — **폰이 원본**
 - `js/photo.js` 사진을 가로 800px JPEG로 줄임
-- `js/sync.js` 구글 시트 동기화 클라이언트(앱스 스크립트 웹 앱, text/plain POST). updatedAt 늦은 쪽이 이김, 삭제는 deleted 표시
-- `apps-script/Code.gs` 시트에 붙는 앱스 스크립트(시트 탭: 상품/사진/설정, 사진 파일은 Drive «일본쇼핑 사진»). onEdit가 시트 직접 수정 시 updatedAt 갱신
+- `js/sync.js` 구글 시트 동기화 클라이언트(앱스 스크립트 웹 앱, text/plain POST, 요청마다 60초 제한). updatedAt 늦은 쪽이 이김, 삭제는 deleted 표시
+- `apps-script/Code.gs` 시트에 붙는 앱스 스크립트(시트 탭: 상품/사진/설정, 사진 파일은 Drive «일본쇼핑 사진»). onEdit가 시트 직접 수정 시 updatedAt 갱신. `VERSION`(지금 2)을 hello·pull로 돌려주고 앱은 `serverV`로 저장해 낮으면 안내한다. 상품 시트 칸은 **맨 뒤에만** 더한다(`sheet_`가 예전 시트에 머리글을 붙임)
 - `data/products.json` 처음 넣는 상품(X 북마크에서 고른 32개). 새 id를 더하면 다음에 열 때 그것만 추가됨
 - `sw.js` 서비스 워커(앱 파일 캐시, 네트워크 먼저), `manifest.webmanifest`, `icons/`(마스코트), `images/mascot-320.png`(힉스필드로 만든 삼색 고양이, 토끼 시안 스타일. `mascot-dizzy-320.png`는 예산 넘었을 때 눈 돌아간 고양이). 힉스필드 원본은 `design/higgsfield/`(gitignore, OneDrive에만), `fonts/Jua-Regular.ttf`(OFL)
 - `preview.html` 처음 디자인 시안(참고용)
