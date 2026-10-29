@@ -64,18 +64,39 @@ async function seed() {
   if (!S.stores.length) { S.stores = data.판매처목록; await db.setMeta('stores', S.stores); }
   // 면세가 비교(트래킹 작업이 json에 적는 값)는 시트에 칸이 없어서 저장하지 않고 열 때마다 json에서 읽는다.
   // 가격이 비어 있는 상품만 가장 싼 면세가를 채운다(효니가 적은 가격은 그대로 둔다)
+  // 나중에 찾아 넣은 정보(가격·어디·링크·용량·출처)도 폰에 비어 있는 칸만 채운다
   S.cmp = {};
   for (const p of data.상품) {
-    if (!p.면세비교) continue;
-    S.cmp[p.id] = p.면세비교;
+    if (p.면세비교) S.cmp[p.id] = p.면세비교;
     const l = await db.get('products', p.id);
-    if (l && !l.deleted && l.한국가격?.금액 == null && p.한국가격?.금액 != null) await db.put('products', { ...l, 한국가격: p.한국가격, updatedAt: Date.now(), _dirty: true });
+    if (!l || l.deleted) continue;
+    const n = fillEmpty(l, p);
+    // updatedAt은 1만 올린다: 다른 기기가 그새 고친 게 시트에 있으면 그쪽이 이기고, 다음에 열 때 다시 채운다
+    if (n) await db.put('products', { ...n, updatedAt: (l.updatedAt || 0) + 1, _dirty: true });
   }
   // json의 목록들도 처음 보는 id만 더한다(효니가 지운 목록은 다시 안 만든다)
   const knownL = new Set(await db.meta('seededLists', [])), delL = await db.meta('listsDel', []);
   const addL = (data.목록들 || []).filter((l) => !knownL.has(l.id) && !delL.includes(l.id) && !listById(l.id));
   if (addL.length) { S.lists.push(...addL.map((l) => ({ id: l.id, 이름: l.이름, 통화: l.통화 === 'JPY' ? 'JPY' : 'KRW', 예산: +l.예산 || 0 }))); await saveLists(); }
   await db.setMeta('seededLists', [...new Set([...knownL, ...(data.목록들 || []).map((l) => l.id)])]);
+}
+
+// 바뀐 게 있으면 새 상품, 없으면 null. 채운 칸에 맞는 «확인필요»는 지우되 json에 아직 남아 있으면 둔다(2차 자료로 채운 값)
+function fillEmpty(l, p) {
+  const n = structuredClone(l), done = [];
+  n.한국가격 ??= { 금액: null, 어디: '' };
+  if (n.한국가격.금액 == null && p.한국가격?.금액 != null) { n.한국가격.금액 = p.한국가격.금액; done.push('가격'); }
+  if (!n.한국가격.어디 && p.한국가격?.어디) { n.한국가격.어디 = p.한국가격.어디; done.push('판매처'); }
+  if (!n.링크 && p.링크) { n.링크 = p.링크; done.push('링크'); }
+  if (!n.용량_수량 && p.용량_수량) { n.용량_수량 = p.용량_수량; done.push('용량'); }
+  const have = new Set((n.추천이유_출처 || []).map((s) => s.주소));
+  const more = (p.추천이유_출처 || []).filter((s) => s.주소 && !have.has(s.주소));
+  if (more.length) { n.추천이유_출처 = [...(n.추천이유_출처 || []), ...more]; done.push('출처'); }
+  if (!done.length) return null;
+  const still = p.확인필요 || [];
+  n.확인필요 = (n.확인필요 || []).filter((x) => !done.includes(x) || still.includes(x));
+  for (const x of still) if (done.includes(x) && !n.확인필요.includes(x)) n.확인필요.push(x);
+  return n;
 }
 
 async function loadAll() {
@@ -149,11 +170,13 @@ function estPrice(p) {
   return c.length ? Math.max(...c) : null; // 넉넉하게: 가장 비싼 값
 }
 const isBought = (p) => !!p.구입?.완료;
+// 필요없어진 상품(날짜 문자열). 산 것이 우선이다
+const isSkipped = (p) => !isBought(p) && !!p.필요없음;
 
-// 지금 고른 목록 안에서만 센다(목록마다 통화가 같아서 더할 수 있다)
+// 지금 고른 목록 안에서만 센다(목록마다 통화가 같아서 더할 수 있다). 필요없어진 건 합계·개수에서 뺀다
 function totals() {
   let est = 0, unknown = 0, real = 0, done = 0, saved = 0, savedN = 0;
-  const list = inCur(), jp = isJP();
+  const list = inCur().filter((p) => !isSkipped(p)), jp = isJP();
   list.forEach((p) => {
     const e = estPrice(p), q = p.목표개수 || 1;
     if (e == null) unknown++; else est += e * q;
@@ -197,7 +220,7 @@ function ph(p) {
     ${c ? `<img src="${img(c.data)}" alt="" loading="lazy">` : `<span class="emo" aria-hidden="true">${CAT_EMO[p.대분류] || '🎀'}</span>`}
     <span class="prio ${PRIO_CLS[p.우선순위] || 'maybe'}">${esc(p.우선순위)}</span>
     ${c ? '' : `<span class="brand">${esc(p.브랜드_일본어 || p.브랜드_한글 || '')}</span>`}
-    ${isBought(p) ? '<div class="done-stamp"><span>購入済<br>♡</span></div>' : ''}
+    ${isBought(p) ? `<div class="done-stamp"><span>${isJPItem(p) ? '購入済' : '샀어요'}<br>♡</span></div>` : isSkipped(p) ? '<div class="done-stamp skip"><span>안 사도<br>돼요</span></div>' : ''}
   </div>`;
 }
 
@@ -221,8 +244,9 @@ function filtered() {
   const q = ui.q.trim().toLowerCase();
   const list = inCur().filter((p) => {
     if (ui.cat !== '전체' && p.대분류 !== ui.cat) return false;
-    if (ui.buy === 'todo' && isBought(p)) return false;
+    if (ui.buy === 'todo' && (isBought(p) || isSkipped(p))) return false;
     if (ui.buy === 'done' && !isBought(p)) return false;
+    if (ui.buy === 'skip' && !isSkipped(p)) return false;
     if (ui.prio !== '전체' && p.우선순위 !== ui.prio) return false;
     if (ui.shop !== '전체' && !(p.판매처 || []).some((x) => x.이름 === ui.shop)) return false;
     if (!q) return true;
@@ -230,7 +254,8 @@ function filtered() {
   });
   const pr = (p) => PRIOS.indexOf(p.우선순위) + 1 || 9;
   const cmp = { prio: (a, b) => pr(a) - pr(b), price: (a, b) => (estPrice(a) ?? 1e9) - (estPrice(b) ?? 1e9), name: (a, b) => a.이름_한글.localeCompare(b.이름_한글, 'ko') }[ui.sort];
-  return list.sort((a, b) => isBought(a) - isBought(b) || cmp(a, b));
+  const rank = (p) => (isSkipped(p) ? 2 : isBought(p) ? 1 : 0);
+  return list.sort((a, b) => rank(a) - rank(b) || cmp(a, b));
 }
 
 function renderList() {
@@ -246,7 +271,7 @@ function renderList() {
     </div>
     <div class="chips" role="group" aria-label="대분류">${cats.map((c) => `<button class="chip" data-cat="${c}" aria-pressed="${ui.cat === c}">${CAT_EMO[c] ? CAT_EMO[c] + ' ' : ''}${c}</button>`).join('')}</div>
     <div class="subtools">
-      <select id="buyF" aria-label="구입 여부"><option value="all" ${ui.buy === 'all' ? 'selected' : ''}>전부 보기</option><option value="todo" ${ui.buy === 'todo' ? 'selected' : ''}>살 것만</option><option value="done" ${ui.buy === 'done' ? 'selected' : ''}>산 것만</option></select>
+      <select id="buyF" aria-label="구입 여부"><option value="all" ${ui.buy === 'all' ? 'selected' : ''}>전부 보기</option><option value="todo" ${ui.buy === 'todo' ? 'selected' : ''}>살 것만</option><option value="done" ${ui.buy === 'done' ? 'selected' : ''}>산 것만</option><option value="skip" ${ui.buy === 'skip' ? 'selected' : ''}>필요없어진 것</option></select>
       <select id="prioF" aria-label="우선순위"><option value="전체">우선순위 전부</option>${PRIOS.map((x) => `<option ${ui.prio === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
       ${jp ? `<select id="shopF" aria-label="판매처"><option value="전체">판매처 전부</option>${S.stores.map((x) => `<option value="${esc(x)}" ${ui.shop === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>` : ''}
       <select id="sort" aria-label="정렬">
@@ -274,7 +299,7 @@ function drawGrid() {
   $('#count').textContent = `${list.length}개`;
   $('#grid').innerHTML = list.length ? list.map((p) => {
     const e = estPrice(p), jp = isJPItem(p);
-    return `<button class="card ${isBought(p) ? 'bought' : ''}" data-id="${esc(p.id)}" aria-label="${esc(p.이름_한글)} 자세히">
+    return `<button class="card ${isBought(p) || isSkipped(p) ? 'bought' : ''}" data-id="${esc(p.id)}" aria-label="${esc(p.이름_한글)} 자세히">
       ${ph(p)}
       <div class="body">
         ${jp && p.이름_일본어 ? `<div class="jpname">${esc(p.이름_일본어)}</div>` : ''}
@@ -363,10 +388,13 @@ function openDetail(id) {
       ${(p.확인필요 || []).length ? `<div class="sec"><h3>확인 필요</h3><div class="tags">${p.확인필요.map((x) => `<span class="tag warn">${esc(x)}</span>`).join('')}</div></div>` : ''}
       ${(p.추천이유_출처 || []).length ? `<div class="sec src"><h3>출처</h3>${p.추천이유_출처.map((s) => `${s.주소 ? `<a href="${esc(safeUrl(s.주소))}" target="_blank" rel="noopener">${esc(s.주소.replace(/^https?:\/\//, ''))}</a>` : ''}${s.메모 ? ` <span>${esc(s.메모)}</span>` : ''}`).join('<br>')}</div>` : ''}
       ${isBought(p) ? `<div class="sec"><h3>구매 기록</h3><p>${b.가격 ? money(b.가격, jp) : '가격 미입력'} × ${b.개수 || 1}개 · ${esc(b.산곳 || '')} · ${esc(b.날짜 || '')}</p></div>` : ''}
+      ${isSkipped(p) ? `<div class="sec"><h3>필요없어짐</h3><p>${esc(p.필요없음)}에 안 사기로 했어요. 합계에서 빠져 있어요.</p></div>` : ''}
     </div>
     <div class="sticky-act">
       <button class="btn" id="edit">수정</button>
-      ${isBought(p) ? `<button class="btn block" id="unbuy">구매 취소</button>` : `<button class="btn primary block" id="buy">샀어요 ♡</button>`}
+      ${isBought(p) ? `<button class="btn block" id="unbuy">구매 취소</button>`
+        : isSkipped(p) ? `<button class="btn primary block" id="unskip">다시 사고 싶어요</button>`
+        : `<button class="btn" id="skip">필요없어짐</button><button class="btn primary block" id="buy">샀어요 ♡</button>`}
     </div>`);
   if (jp) $('#showBtn').onclick = () => showStaff(p);
   $('#edit').onclick = () => { closeSheet(true); openEdit(p.id); };
@@ -374,7 +402,15 @@ function openDetail(id) {
   sl.onscroll = () => { const i = Math.round(sl.scrollLeft / sl.clientWidth); $$('#dots i').forEach((d, j) => d.classList.toggle('on', i === j)); };
   $$('.slide.img', sl).forEach((s) => (s.onclick = () => openZoom(pics, +s.dataset.i)));
   if (isBought(p)) $('#unbuy').onclick = () => unbuy(p, true);
-  else $('#buy').onclick = () => openBuy(p);
+  else if (isSkipped(p)) $('#unskip').onclick = () => setSkip(p, '');
+  else { $('#buy').onclick = () => openBuy(p); $('#skip').onclick = () => setSkip(p, today()); }
+}
+
+async function setSkip(p, v) {
+  const prev = p.필요없음 || '';
+  p.필요없음 = v; await saveProduct(p);
+  closeSheet(true); render();
+  toast(v ? `${p.이름_한글.slice(0, 14)} 필요없어짐` : '다시 살 것으로 돌렸어요', async () => { p.필요없음 = prev; await saveProduct(p); render(); });
 }
 
 function openZoom(pics, i) {
@@ -429,8 +465,9 @@ function openBuy(p, store) {
 
 async function markBought(p, rec) {
   const prev = p.구입;
-  p.구입 = rec; await saveProduct(p); render();
-  toast(`${p.이름_한글.slice(0, 14)} 구매 완료`, async () => { p.구입 = prev || { 완료: false }; await saveProduct(p); render(); });
+  const prevSkip = p.필요없음 || '';
+  p.구입 = rec; p.필요없음 = ''; await saveProduct(p); render();
+  toast(`${p.이름_한글.slice(0, 14)} 구매 완료`, async () => { p.구입 = prev || { 완료: false }; p.필요없음 = prevSkip; await saveProduct(p); render(); });
 }
 
 async function unbuy(p, fromDetail) {
@@ -662,7 +699,7 @@ function openEdit(id) {
 /* ---------- 매장 모드 ---------- */
 function renderStore() {
   if (!S.stores.includes(ui.store)) ui.store = S.stores[0];
-  const list = inCur().filter((p) => (p.판매처 || []).some((s) => s.이름 === ui.store) || (ui.withUnknown && !(p.판매처 || []).length))
+  const list = inCur().filter((p) => !isSkipped(p)).filter((p) => (p.판매처 || []).some((s) => s.이름 === ui.store) || (ui.withUnknown && !(p.판매처 || []).length))
     .sort((a, b) => isBought(a) - isBought(b) || PRIOS.indexOf(a.우선순위) - PRIOS.indexOf(b.우선순위));
   const left = list.filter((p) => !isBought(p)).length;
   $('#main').innerHTML = `<div class="store-head">${headImg()}<div><h2>매장 모드</h2><p>고른 매장에서 살 것만 크게! 누르면 바로 구매 완료</p></div></div>
@@ -697,7 +734,7 @@ function renderStore() {
 function renderReport() {
   const t = totals(), jp = isJP(), mine = inCur();
   const both = (n) => (jp ? `${yen(n)} · ${won(n * S.rate)}` : krw(n));
-  const bought = mine.filter(isBought), todo = mine.filter((p) => !isBought(p));
+  const bought = mine.filter(isBought), skipped = mine.filter(isSkipped), todo = mine.filter((p) => !isBought(p) && !isSkipped(p));
   const byStore = {};
   bought.forEach((p) => { const k = p.구입.산곳 || '기타'; byStore[k] = (byStore[k] || 0) + (p.구입.가격 || 0) * (p.구입.개수 || 1); });
   $('#main').innerHTML = `<div class="store-head">${headImg()}<div><h2>정리 · ${esc(curList().이름)}</h2><p>산 것과 안 산 것, 쓴 돈을 한눈에</p></div></div>
@@ -711,6 +748,7 @@ function renderReport() {
     </div>
     <div class="rcard"><h3>산 것 ${bought.length}개</h3>${bought.length ? bought.map((p) => `<button class="rline link" data-open="${esc(p.id)}"><span>${esc(p.이름_한글)}</span><span>${p.구입.가격 ? money(p.구입.가격, jp) : '—'} × ${p.구입.개수 || 1}</span></button>`).join('') : '<p class="sub">아직 없어요</p>'}</div>
     <div class="rcard"><h3>안 산 것 ${todo.length}개</h3>${todo.map((p) => `<button class="rline link" data-open="${esc(p.id)}"><span>${esc(p.이름_한글)}</span><span class="sub">${esc(p.우선순위)}</span></button>`).join('')}</div>
+    ${skipped.length ? `<div class="rcard"><h3>필요없어진 것 ${skipped.length}개</h3>${skipped.map((p) => `<button class="rline link" data-open="${esc(p.id)}"><span>${esc(p.이름_한글)}</span><span class="sub">${esc(p.필요없음)}</span></button>`).join('')}</div>` : ''}
   </div>`;
   $$('[data-open]').forEach((b) => (b.onclick = () => openDetail(b.dataset.open)));
   bindListBar();
@@ -748,7 +786,7 @@ async function renderSet() {
       <label class="field"><span>비밀번호 <small>(처음 연결할 때 정한 값)</small></span><input id="sKey" type="password" value="${esc(cfg.key)}" autocomplete="off"></label>
       <div class="row2"><button class="btn" id="sTest">연결 확인</button><button class="btn primary" id="sNow">지금 동기화</button></div>
       <p class="sub" id="sMsg">${cfg.lastAt ? '마지막 동기화: ' + new Date(cfg.lastAt).toLocaleString('ko-KR') : '아직 동기화한 적 없어요'}</p>
-      ${cfg.lastAt && cfg.serverV < 2 ? '<p class="sub warn-line">시트 스크립트가 예전 버전이라 «목록»·«링크»가 시트에 저장되지 않아요. 앱스 스크립트에서 «배포 관리 → 새 버전»으로 다시 배포해 주세요.</p>' : ''}
+      ${cfg.lastAt && cfg.serverV < 3 ? '<p class="sub warn-line">시트 스크립트가 예전 버전이라 «목록»·«링크»·«필요없어짐»이 시트에 저장되지 않아요. 앱스 스크립트에서 «배포 관리 → 새 버전»으로 다시 배포해 주세요.</p>' : ''}
     </div>
     <div class="rcard"><h3>백업</h3>
       <div style="display:grid;gap:8px">
@@ -860,7 +898,7 @@ async function runSync(manual) {
     if (r.got || listsChanged) { await loadAll(); render(); }
     setSyncState('ok');
     if (r.again) syncAgain = true; // 목록·링크를 새 스크립트로 다시 보내기
-    if (r.serverV < 2 && !warnedOld) { warnedOld = true; toast('시트 스크립트를 새 버전으로 배포해야 목록·링크가 저장돼요 (설정 참고)'); }
+    if (r.serverV < 3 && !warnedOld) { warnedOld = true; toast('시트 스크립트를 새 버전으로 배포해야 목록·링크·필요없어짐이 저장돼요 (설정 참고)'); }
     if (manual) { toast(`동기화 끝! 보낸 것 ${r.sent} · 받은 것 ${r.got}` + (r.failed ? ` · 못 받은 사진 ${r.failed}${r.lastErr ? ` (${r.lastErr})` : ''}` : '')); if (S.tab === 'set') renderSet(); }
   } catch (e) {
     setSyncState('err');

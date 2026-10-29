@@ -104,15 +104,15 @@ export async function sync(onStep = () => {}) {
     await db.setMeta('lists', ml.merged); await db.setMeta('listsDel', ml.del); await db.setMeta('listsAt', ml.at);
     if (ml.needPush) await call(url, { action: 'saveSettings', key, settings: { 목록들: ml.merged, 목록삭제: ml.del, listsAt: ml.at } });
   }
-  // 시트 스크립트가 2로 올라간 첫 동기화: 예전 스크립트가 버린 목록·링크를 다시 보낸다
+  // 시트 스크립트가 올라간 첫 동기화: 예전 스크립트가 버린 칸(2: 목록·링크, 3: 필요없음)을 다시 보낸다
   const prevV = await db.meta('serverV', 1), v = res.v || 1;
   let again = false;
-  if (prevV < 2 && v >= 2) {
-    for (const p of await db.all('products')) if (p.목록 || p.링크) { await db.put('products', { ...p, _dirty: true }); again = true; }
+  if (prevV < 3 && v > prevV) {
+    for (const p of await db.all('products')) if ((prevV < 2 && v >= 2 && (p.목록 || p.링크)) || (v >= 3 && p.필요없음)) { await db.put('products', { ...p, _dirty: true }); again = true; }
   }
   await db.setMeta('lastPull', res.now);
   await db.setMeta('lastSyncAt', Date.now());
-  await db.setMeta('serverV', v); // 2부터 목록·링크 칸이 시트에 있다
+  await db.setMeta('serverV', v); // 2부터 목록·링크, 3부터 필요없음 칸이 시트에 있다
   return { sent: dirtyP.length + dirtyPh.length + toUpload.length, got: changed, failed, lastErr, serverV: v, again };
 }
 

@@ -5,14 +5,14 @@
  * 비밀번호는 앱에서 처음 «연결 확인»을 누를 때 정해진다(스크립트 속성 SYNC_KEY). 코드·레포에는 넣지 않는다.
  */
 
-// 앱이 이 값을 보고 시트에 목록·링크 칸이 있는지 안다
-const VERSION = 2;
+// 앱이 이 값을 보고 시트에 목록·링크(2)·필요없음(3) 칸이 있는지 안다
+const VERSION = 3;
 
 // 새 칸은 맨 뒤에만 더한다(이미 있는 줄의 칸 위치가 밀리지 않게)
 const P_COLS = ['id', '이름_한글', '이름_일본어', '읽는법', '브랜드_한글', '브랜드_일본어', '대분류', '세부분류', '용량_수량',
   '특징_한줄', '장점', '주의점', '엔화_세금별도', '엔화_세금포함', '세율', '한국가격', '한국가격_어디', '판매처', '매장내위치',
   '면세가능', '면세메모', '목표개수', '우선순위', '선물대상', '구입완료', '구입가격', '구입개수', '구입산곳', '구입날짜',
-  '메모', '확인필요', '색상_호수', '추천이유_출처', '헷갈리는제품', 'updatedAt', 'deleted', 'syncedAt', '목록', '링크'];
+  '메모', '확인필요', '색상_호수', '추천이유_출처', '헷갈리는제품', 'updatedAt', 'deleted', 'syncedAt', '목록', '링크', '필요없음'];
 const PH_COLS = ['id', 'productId', '설명', '순서', 'fileId', 'updatedAt', 'deleted', 'syncedAt'];
 const NUM_COLS = ['엔화_세금별도', '엔화_세금포함', '세율', '한국가격', '목표개수', '구입가격', '구입개수', 'updatedAt', 'syncedAt'];
 const FOLDER = '일본쇼핑 사진';
@@ -93,7 +93,7 @@ function toRow_(p) {
     구입산곳: g.산곳, 구입날짜: g.날짜, 메모: p.메모, 확인필요: (p.확인필요 || []).join(', '),
     색상_호수: JSON.stringify(p.색상_호수 || []), 추천이유_출처: JSON.stringify(p.추천이유_출처 || []), 헷갈리는제품: JSON.stringify(p.헷갈리는제품 || []),
     updatedAt: p.updatedAt || Date.now(), deleted: p.deleted ? 'O' : '', syncedAt: Date.now(),
-    목록: p.목록 || '', 링크: /^https?:\/\//i.test(p.링크 || '') ? p.링크 : '',
+    목록: p.목록 || '', 링크: /^https?:\/\//i.test(p.링크 || '') ? p.링크 : '', 필요없음: p.필요없음 || '',
   };
   return P_COLS.map((c) => safe_(v[c]));
 }
@@ -122,7 +122,7 @@ function fromRow_(r) {
     메모: String(v.메모 || ''), 확인필요: String(v.확인필요 || '').split(',').map((s) => s.trim()).filter(String),
     색상_호수: js(v.색상_호수, []), 추천이유_출처: js(v.추천이유_출처, []), 헷갈리는제품: js(v.헷갈리는제품, []),
     updatedAt: num(v.updatedAt) || 0, deleted: v.deleted === 'O',
-    목록: String(v.목록 || ''), 링크: String(v.링크 || ''),
+    목록: String(v.목록 || ''), 링크: String(v.링크 || ''), 필요없음: fmtDate_(v.필요없음),
   };
 }
 

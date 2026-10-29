@@ -320,3 +320,9 @@ details.more[open]{display:grid;gap:12px;padding-bottom:12px}
 .mood{position:relative;margin-top:8px;padding:6px 10px;border-radius:12px;background:#FFF1CC;color:#6B4A00;font-family:var(--cute);font-size:15px}
 .mood.dizzy{background:#FFE0EA;color:var(--pink-deep)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* 필요없어짐 도장: 회색 점선 */
+.done-stamp.skip span{border-color:var(--faint);color:var(--sub);font-family:var(--cute);font-weight:400;font-size:15px}
+.grid.list .done-stamp.skip span{font-size:11px}
+.sticky-act #skip{flex:none;padding-left:12px;padding-right:12px}
+/* 아이폰은 16px보다 작은 입력칸을 누르면 화면을 확대한 채로 둬서 화면이 어긋나 보인다 */
+@media (max-width:767px),(pointer:coarse){ input,select,textarea{font-size:16px!important} }
