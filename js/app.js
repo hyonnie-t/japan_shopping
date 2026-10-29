@@ -62,6 +62,11 @@ async function seed() {
   if (add.length) await db.putMany('products', add);
   await db.setMeta('seededIds', [...new Set([...known, ...data.상품.map((p) => p.id)])]);
   if (!S.stores.length) { S.stores = data.판매처목록; await db.setMeta('stores', S.stores); }
+  // json의 목록들도 처음 보는 id만 더한다(효니가 지운 목록은 다시 안 만든다)
+  const knownL = new Set(await db.meta('seededLists', [])), delL = await db.meta('listsDel', []);
+  const addL = (data.목록들 || []).filter((l) => !knownL.has(l.id) && !delL.includes(l.id) && !listById(l.id));
+  if (addL.length) { S.lists.push(...addL.map((l) => ({ id: l.id, 이름: l.이름, 통화: l.통화 === 'JPY' ? 'JPY' : 'KRW', 예산: +l.예산 || 0 }))); await saveLists(); }
+  await db.setMeta('seededLists', [...new Set([...knownL, ...(data.목록들 || []).map((l) => l.id)])]);
 }
 
 async function loadAll() {
