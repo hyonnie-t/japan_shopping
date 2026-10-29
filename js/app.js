@@ -62,6 +62,15 @@ async function seed() {
   if (add.length) await db.putMany('products', add);
   await db.setMeta('seededIds', [...new Set([...known, ...data.상품.map((p) => p.id)])]);
   if (!S.stores.length) { S.stores = data.판매처목록; await db.setMeta('stores', S.stores); }
+  // 면세가 비교(트래킹 작업이 json에 적는 값)는 시트에 칸이 없어서 저장하지 않고 열 때마다 json에서 읽는다.
+  // 가격이 비어 있는 상품만 가장 싼 면세가를 채운다(효니가 적은 가격은 그대로 둔다)
+  S.cmp = {};
+  for (const p of data.상품) {
+    if (!p.면세비교) continue;
+    S.cmp[p.id] = p.면세비교;
+    const l = await db.get('products', p.id);
+    if (l && !l.deleted && l.한국가격?.금액 == null && p.한국가격?.금액 != null) await db.put('products', { ...l, 한국가격: p.한국가격, updatedAt: Date.now(), _dirty: true });
+  }
   // json의 목록들도 처음 보는 id만 더한다(효니가 지운 목록은 다시 안 만든다)
   const knownL = new Set(await db.meta('seededLists', [])), delL = await db.meta('listsDel', []);
   const addL = (data.목록들 || []).filter((l) => !knownL.has(l.id) && !delL.includes(l.id) && !listById(l.id));
@@ -350,6 +359,7 @@ function openDetail(id) {
       ${mixPics.length ? `<div class="sec"><h3>헷갈리는 제품</h3>${mixPics.map((m) => { const mp = photosOf(p.id).find((x) => x.id === m.photoId); return `<div class="mix">${mp?.data ? `<img src="${img(mp.data)}" alt="">` : ''}<p>${esc(m.구분점)}</p></div>`; }).join('')}</div>` : ''}
       ${p.선물대상 ? `<div class="sec"><h3>선물</h3><p>${esc(p.선물대상)}</p></div>` : ''}
       ${p.메모 ? `<div class="sec"><h3>메모</h3><p>${esc(p.메모)}</p></div>` : ''}
+      ${S.cmp?.[p.id] ? `<div class="sec"><h3>면세가 비교</h3><p>${esc(S.cmp[p.id].요약 || '')}</p>${S.cmp[p.id].날짜 ? `<div class="sub">${esc(S.cmp[p.id].날짜)} 기준</div>` : ''}</div>` : ''}
       ${(p.확인필요 || []).length ? `<div class="sec"><h3>확인 필요</h3><div class="tags">${p.확인필요.map((x) => `<span class="tag warn">${esc(x)}</span>`).join('')}</div></div>` : ''}
       ${(p.추천이유_출처 || []).length ? `<div class="sec src"><h3>출처</h3>${p.추천이유_출처.map((s) => `${s.주소 ? `<a href="${esc(safeUrl(s.주소))}" target="_blank" rel="noopener">${esc(s.주소.replace(/^https?:\/\//, ''))}</a>` : ''}${s.메모 ? ` <span>${esc(s.메모)}</span>` : ''}`).join('<br>')}</div>` : ''}
       ${isBought(p) ? `<div class="sec"><h3>구매 기록</h3><p>${b.가격 ? money(b.가격, jp) : '가격 미입력'} × ${b.개수 || 1}개 · ${esc(b.산곳 || '')} · ${esc(b.날짜 || '')}</p></div>` : ''}
